@@ -90,7 +90,7 @@ use -h for help.
 
 Anonymous (for now) 
 
-Distributed under the MIT license. See ``LICENSE`` for more information.
+Distributed under the CC-BY-NC license. See ``LICENSE`` for more information.
 
 ## Contributing
 
