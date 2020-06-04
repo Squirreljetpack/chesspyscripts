@@ -20,7 +20,7 @@ class Config(object):
         self.start_fen=start_fen
         self.index=index
         self.punctuation=[',','.','(',')']
-        self.move_regex=re.compile("(\(?[0-9]{0,3}\)?\s?\.{0,3})?\s*(?:([KQ]?(?:[QKRBNP]|Kt))([.\/][QK]?(?:[RBN]|Kt)?[1-8]|\((?:[QK]?(?:[RBN]|Kt)?[1-8])\)|[1-8]?)?\s*(["+sep_move+sep_capture+"])\s*(?:([KQ]?(?:[QKRBN]|Kt)[1-8])|([KQ]?(?:[RBN]|Kt)?(?:[QRBNP]|Kt))([.\/][QK]?(?:[RBN]|Kt)?[1-8]|\((?:[QK]?(?:[RBN]|Kt)?[1-8])\)|[1-8]?)?)(\((?:[QRBN]|Kt)\)|=(?:[QRBN]|Kt)|\/(?:[QRBN]|Kt))?|(O-O-O|O-O|0-0|0-0-0|castles|long castles))\s*\(?(ch|dbl ch|mate|[+\-=!?≠∓±#]{1,2})?",flags=re.I)
+        self.move_regex=re.compile("(\(?[0-9]{0,3}\)?\s?\.*)?\s*(?<!#)(?:([KQ]?(?:[RBN]|Kt)??(?:[QKRBNP]|Kt))([.\/][QK]?(?:[RBN]|Kt)?[1-8]|\((?:[QK]?(?:[RBN]|Kt)?[1-8])\)|[1-8]?)?\s*(["+sep_move+sep_capture+"])\s*(?:([KQ]?(?:[QKRBN]|Kt)[1-8])|([KQ]?(?:[RBN]|Kt)?(?:[QRBNP]|Kt))([.\/][QK]?(?:[RBN]|Kt)?[1-8]|\((?:[QK]?(?:[RBN]|Kt)?[1-8])\)|[1-8]?)?)(\((?:[QRBN]|Kt)\)|=(?:[QRBN]|Kt)|\/(?:[QRBN]|Kt))?|(O-O-O|O-O|0-0-0|0-0))\s*\(?(ch|dbl ch|mate|[+\-=!?≠∓±#]{1,2})?",flags=re.I)
         self.nag_dict={
             '!':1,
             '?':2,
@@ -100,7 +100,7 @@ def arr_to_comment(arr):
 def only_punctuation(s,pset):
     for i in s:
         if i not in pset:
-            return s
+            return ''.join([x for x in s if x !='#'])
     else:
         return ''
     
@@ -147,7 +147,7 @@ class qerror(object):
                 print(i)
         if self.verbose>=2:
             for i in self.board:
-                    print(i.uci()+' ',end='')
+                print(i.uci()+' ',end='')
 
 def colorc(i,color):
     if color:
@@ -192,10 +192,10 @@ def convert_to_set(move,board,config,qe):
             else:
                 move[i]=move[i].upper()
             move[i]=move[i].replace('KT','N')
-    if move[8] in ['O-O','0-0','CASTLES']:
+    if move[8] in ['O-O','0-0']:
         if color: return {'e1g1'}
         else: return {'e8g8'}
-    elif move[8] in ['O-O-O','0-0-0','LONG CASTLES']:
+    elif move[8] in ['O-O-O','0-0-0']:
         if color: return {'e1c1'}
         else: return {'e8c8'}
     else:
@@ -212,10 +212,12 @@ def convert_to_set(move,board,config,qe):
         if len(move[1])>1:
             if move[2]:
                 qe.add("possible from_move redudancy/error")
-            if move[1][0]=='Q':
+            if len(move[1])==2 and move[1][0]=='Q':
                 move_object.set_rc(0,{'a','b','c','d'})
-            else:
+            elif len(move[1])==2 and move[1][0]=='K':
                 move_object.set_rc(0,{'e','f','g','h'})
+            else:
+                move_object.set_rc(0,s_dict[move[1][:-1]])
         if move[2]:
             try:
                 val=re.search(re.compile("([QK]?(?:[RBN]|Kt))?([0-9])"),move[2])
@@ -305,6 +307,7 @@ def pgn_builder(movelist,config,output):
                 qe.add('Error',str(moveuci))
                 temp_index=k
                 commentline+=arr_to_comment(move_arr)
+                qe.spit()
                 continue
             move=chess.Move.from_uci(moveuci.pop())
             game.push(move)

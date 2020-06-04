@@ -65,7 +65,7 @@ use -h for help.
 
 Flexible descriptive to algebraic notation converter.
 
-Can parse variations, [different forms of descriptive notation](https://en.wikipedia.org/wiki/Descriptive_notation), comments reasonably intelligently. Supports 1 level of variations, further variations become comments. Verbose mode shows more information/Regex groups used in parsing.
+Can parse variations, [different forms of descriptive notation](https://en.wikipedia.org/wiki/Descriptive_notation), comments reasonably intelligently. Supports 1 level of variations, further variations become comments. Verbose mode shows more information about errors and Regex groups used in parsing. Moves can be commented out by prefixing with # (not including the move number).
 
 #### Pgn to speech
 
