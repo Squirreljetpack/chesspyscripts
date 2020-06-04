@@ -101,11 +101,11 @@ def to_movelist(node,index,nocomments,l=[]):
         to_movelist(main,index,nocomments,l=l)
     return l
 
-def to_text(movelist, noindex, startsvariation=False):
+def to_text(movelist, noindex, break_duration, startsvariation=False):
     textlist=[]
     for i in movelist:
         if isinstance(i, list):
-            textlist.append(to_text(i,noindex,startsvariation=True))
+            textlist.append(to_text(i, noindex, break_duration, startsvariation=True))
             textlist.append("returning to the previous board:")
             continue
         sentence=i.starting_comment
@@ -133,10 +133,10 @@ def to_text(movelist, noindex, startsvariation=False):
             else:
                 sentence+=" to "
             sentence+=chess.SQUARE_NAMES[i.move.to_square]
-        sentence+='. <break time="1s"/>'
+        sentence+=f'. <break time="{break_duration}"/>'
         if i.comment:
             sentence+=i.comment
-            sentence+='<break time=".8s"/>'
+            sentence+=f'<break time="{break_duration*.75}"/>'
         if startsvariation:
             sentence+=" Then"
             startsvariation=False
@@ -175,7 +175,7 @@ def main(args):
                     if args.verbose>=1:
                         print(output)
                         print(movelist)
-                    text=to_text(movelist,args.noindex)
+                    text=to_text(movelist,args.noindex,args.pause)
                     if args.transcript:
                         with open(args.transcript,'a') as tfile:
                             tfile.write(output+'\n')
@@ -188,7 +188,7 @@ def main(args):
                 with open(filename,'r') as file: 
                     Game=chess.pgn.read_game(file)
                 movelist=to_movelist(Game,1.0,args.nocomments)[1:]
-                text=to_text(movelist,args.noindex)
+                text=to_text(movelist,args.noindex,args.pause)
                 if args.transcript:
                         with open(args.transcript,'a') as tfile:
                             tfile.write(output+'\n')
@@ -208,7 +208,8 @@ if __name__ == "__main__":
     parser.add_argument("--nocomments", help="Don't say comments", action="store_true", default=False)
     parser.add_argument("--silent", help="No audio", action="store_true", default=False)
     parser.add_argument("-t","--transcript", action="store")
-    parser.add_argument("-s", "--speed", action="store", default=0.8, help="0.25 -> 4, default 0.8", type=float)
+    parser.add_argument("-s", "--speed", action="store", default=0.66, help="0.25 -> 4, default 0.8", type=float)
+    parser.add_argument("--breaklength", action="store", default=2.5, help="length of pause between moves", type=float, dest='pause')
     parser.add_argument("-g", "--gender", action="store", help="1: MALE, 2: FEMALE, default 1", default=1, type=int)
     parser.add_argument("-p", "--pitch", action="store", help="[-20,20]", default=0, type=float)
     parser.add_argument("-l", "--lancode", action="store", help="BCP-47", default='en-US')

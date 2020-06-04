@@ -13,13 +13,14 @@ import chess.pgn
 import sys
 
 class Config(object):
-    def __init__(self, sep_capture='x', sep_move='-', check_sign=['ch','dbl ch','+','#','mate'], start_fen='', index=.5,verbose=0):
+    def __init__(self, sep_capture='x', sep_move='-—', check_sign=['ch','dbl ch','+','#','mate'], start_fen='', index=.5,verbose=0):
         self.sep_capture=sep_capture
         self.sep_move=sep_move
         self.check_sign=check_sign
         self.start_fen=start_fen
         self.index=index
-        self.move_regex=re.compile("([0-9]{0,3}\s?\.{0,3})?\s*(?:([KQ]?(?:[QKRBNP]|Kt))([.\/][QK]?(?:[RBN]|Kt)?[1-8]|\((?:[QK]?(?:[RBN]|Kt)?[1-8])\)|[1-8]?)?\s*(["+sep_capture+sep_move+"])\s*(?:([KQ]?(?:[QKRBN]|Kt)[1-8])|([KQ]?(?:[RBN]|Kt)?(?:[QRBNP]|Kt))([.\/][QK]?(?:[RBN]|Kt)?[1-8]|\((?:[QK]?(?:[RBN]|Kt)?[1-8])\)|[1-8]?)?)(\((?:[QRBN]|Kt)\)|=(?:[QRBN]|Kt)|\/(?:[QRBN]|Kt))?|(O-O-O|O-O|0-0|0-0-0))\s*\(?(ch|dbl ch|mate|[+\-=!?≠∓±#]{1,2})?\)?",flags=re.I)
+        self.punctuation=[',','.','(',')']
+        self.move_regex=re.compile("(\(?[0-9]{0,3}\)?\s?\.{0,3})?\s*(?:([KQ]?(?:[QKRBNP]|Kt))([.\/][QK]?(?:[RBN]|Kt)?[1-8]|\((?:[QK]?(?:[RBN]|Kt)?[1-8])\)|[1-8]?)?\s*(["+sep_move+sep_capture+"])\s*(?:([KQ]?(?:[QKRBN]|Kt)[1-8])|([KQ]?(?:[RBN]|Kt)?(?:[QRBNP]|Kt))([.\/][QK]?(?:[RBN]|Kt)?[1-8]|\((?:[QK]?(?:[RBN]|Kt)?[1-8])\)|[1-8]?)?)(\((?:[QRBN]|Kt)\)|=(?:[QRBN]|Kt)|\/(?:[QRBN]|Kt))?|(O-O-O|O-O|0-0|0-0-0|castles|long castles))\s*\(?(ch|dbl ch|mate|[+\-=!?≠∓±#]{1,2})?",flags=re.I)
         self.nag_dict={
             '!':1,
             '?':2,
@@ -95,6 +96,15 @@ def arr_to_comment(arr):
     if move_arr[3] is not None:
         move_arr[3]=move_arr[3].lower()
     return ' '+''.join([x for x in move_arr if x is not None])+' '
+
+def only_punctuation(s,pset):
+    for i in s:
+        if i not in pset:
+            return s
+    else:
+        return ''
+    
+
 def number_to_index(num,index,move):
     try:
         k=int(''.join([x for x in num if x.isdigit()]))
@@ -175,17 +185,17 @@ def convert_to_set(move,board,config,qe):
     move_object=move_c(moves=legalmoves)
     if '..' in move[0] or move[0].strip()=='':
         color=False
-    for i in range(1,len(move[:-2])):
+    for i in range(1,len(move[:-1])):
         if move[i] is not None:
             if i==3:
                 move[i]=move[i].lower()
             else:
                 move[i]=move[i].upper()
             move[i]=move[i].replace('KT','N')
-    if move[8]=='O-O' or move[8]=='0-0':
+    if move[8] in ['O-O','0-0','CASTLES']:
         if color: return {'e1g1'}
         else: return {'e8g8'}
-    elif move[8]=='O-O-O' or move[8]=='0-0-0':
+    elif move[8] in ['O-O-O','0-0-0','LONG CASTLES']:
         if color: return {'e1c1'}
         else: return {'e8c8'}
     else:
@@ -215,7 +225,7 @@ def convert_to_set(move,board,config,qe):
             except:
                 qe.add("from_move error")
         if move[5]:
-            if move[3]!=config.sep_capture:
+            if move[3] not in config.sep_capture:
                 c=s_dict[move[5]]
                 move_object.set_rc(2,c)
             else:
@@ -251,8 +261,11 @@ def convert_to_set(move,board,config,qe):
 
 def pgn_builder(movelist,config,output):
     index=config.index
-    game = chess.Board()
-    rootnode=chess.pgn.Game()
+    if config.start_fen:
+        game = chess.Board(setup=config.start_fen)
+    else:
+        game = chess.Board()
+    rootnode=chess.pgn.Game(setup=game)
     node=rootnode
     savednode=None
     savedmove=None
@@ -274,7 +287,7 @@ def pgn_builder(movelist,config,output):
         if k==index+.5 and k!=side_index+.5 and k!=temp_index+.5:
             if config.verbose>=1:
                 print(k,index,side_index,temp_index,"level 1")
-            node.comment+=commentline
+            node.comment+=only_punctuation(commentline,config.punctuation)
             commentline=''
             if side_index:
                 node=savednode
@@ -296,13 +309,13 @@ def pgn_builder(movelist,config,output):
             game.push(move)
             node = node.add_variation(move)
             nag,remainder=to_nag(move_arr[-2],config)
-            node.comment=remainder+none_to_empty(move_arr[-1])
+            node.comment=only_punctuation(remainder+none_to_empty(move_arr[-1]),config.punctuation)
             node.nags.update(nag)
             index+=.5
         elif k==index and k!=temp_index+.5:
             if config.verbose>=1:
                 print(k,index,side_index,temp_index,"level 2")
-            node.comment+=commentline
+            node.comment+=only_punctuation(commentline,config.punctuation)
             commentline=''
             for t in range(sideline_depth):
                 game.pop()
@@ -323,7 +336,7 @@ def pgn_builder(movelist,config,output):
             sideline_depth+=1
             node = node.parent.add_variation(move)
             nag,remainder=to_nag(move_arr[-2],config)
-            node.comment=remainder+none_to_empty(move_arr[-1])
+            node.comment=only_punctuation(remainder+none_to_empty(move_arr[-1]),config.punctuation)
             node.nags.update(nag)
         elif k==side_index+.5 and k!=temp_index+.5:
             temp_index=0
@@ -339,14 +352,14 @@ def pgn_builder(movelist,config,output):
                 temp_index=k
                 commentline+=arr_to_comment(move_arr)
                 continue
-            node.comment+=commentline
+            node.comment+=only_punctuation(commentline,config.punctuation)
             commentline=''
             move=chess.Move.from_uci(moveuci.pop())
             game.push(move)
             sideline_depth+=1
             node = node.add_variation(move)
             nag,remainder=to_nag(move_arr[-2],config)
-            node.comment=remainder+none_to_empty(move_arr[-1])
+            node.comment=only_punctuation(remainder+none_to_empty(move_arr[-1]),config.punctuation)
             node.nags.update(nag)
             side_index+=.5
         else:
@@ -355,7 +368,7 @@ def pgn_builder(movelist,config,output):
             temp_index=k
             commentline+=arr_to_comment(move_arr)
         qe.spit()
-    node.comment+=commentline
+    node.comment+=only_punctuation(commentline,config.punctuation)
     new_pgn = open(output, "w", encoding="utf-8")
     exporter = chess.pgn.FileExporter(new_pgn)
     rootnode.accept(exporter)
@@ -390,7 +403,7 @@ def formatinput(args):
 
 def main(args):
     """ Main entry point of the app """
-    config=Config(verbose=args.verbose)
+    config=Config(verbose=args.verbose, setup=args.setup)
     if args.test:
         source="""10 Alekhine—Chajes 
         Carlsbad 1923, 
@@ -418,6 +431,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--test", help="Parse an example input", action="store_true", default=False)
     parser.add_argument("-i", "--input", help="Defaults to a file called input", action="store", default="input")
     parser.add_argument("-o", "--output", action="store", help="Defaults to a file called output", default="output.pgn", dest="output")
+    parser.add_argument("-s", "--setup", help="fen starting position", action="store", default='')
 
     parser.add_argument(
         "-v",
