@@ -261,11 +261,12 @@ def convert_to_set(move,board,config,qe):
 
 def pgn_builder(movelist,config,output):
     index=config.index
+    rootnode=chess.pgn.Game()
     if config.start_fen:
-        game = chess.Board(setup=config.start_fen)
+        game = chess.Board(fen=config.start_fen)
+        rootnode.setup(game)
     else:
         game = chess.Board()
-    rootnode=chess.pgn.Game(setup=game)
     node=rootnode
     savednode=None
     savedmove=None
@@ -403,7 +404,7 @@ def formatinput(args):
 
 def main(args):
     """ Main entry point of the app """
-    config=Config(verbose=args.verbose, setup=args.setup)
+    config=Config(verbose=args.verbose, start_fen=args.setup)
     if args.test:
         source="""10 Alekhine—Chajes 
         Carlsbad 1923, 
@@ -431,7 +432,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--test", help="Parse an example input", action="store_true", default=False)
     parser.add_argument("-i", "--input", help="Defaults to a file called input", action="store", default="input")
     parser.add_argument("-o", "--output", action="store", help="Defaults to a file called output", default="output.pgn", dest="output")
-    parser.add_argument("-s", "--setup", help="fen starting position", action="store", default='')
+    parser.add_argument("-s", "--setup", help="fen starting position", action="store", default='', dest="setup")
 
     parser.add_argument(
         "-v",
