@@ -8,6 +8,7 @@ __version__ = "0.1.0"
 __license__ = "MIT"
 
 from functools import reduce
+from time import sleep
 import argparse, re, tempfile, time
 from google.cloud import texttospeech
 from pydub import AudioSegment
@@ -29,6 +30,16 @@ def write_file(source, dest):
         out.write(source)
         print(f'Audio content written to file {dest}')
     return
+
+def to_voice_wrapper(text,speed=1,pitch=0, lancode='en-US', gender=1, letter=None, name=None,wavenet=False,output='output.mp3',verbose=0,retry=60):
+    while True:
+        try:
+            to_voice(text,speed=speed, pitch=pitch, lancode=lancode, gender=gender,letter=letter,name=name,wavenet=wavenet,output=output,verbose=verbose)
+            return
+        except:
+            print(f"Failed. Retrying in {retry} seconds...")
+            sleep(retry)
+
 
 def to_voice(text,speed=1,pitch=0, lancode='en-US', gender=1, letter=None, name=None,wavenet=False,output='output.mp3',verbose=0):
     client = texttospeech.TextToSpeechClient()
@@ -77,10 +88,6 @@ def to_voice(text,speed=1,pitch=0, lancode='en-US', gender=1, letter=None, name=
                 fname=tmpdirname+'/'+str(i)+'.mp3'
                 write_file(response.audio_content,fname)
                 fnames.append(fname)
-                if i%2==1 and i!=len(text_stack)-1:
-                    if verbose:
-                        print("Sleeping for 60 seconds as per api limitations")
-                    time.sleep(20)
             if verbose:
                 print("Stitching audio together...")
             segments = [AudioSegment.from_mp3(f) for f in fnames]
@@ -92,7 +99,6 @@ def to_voice(text,speed=1,pitch=0, lancode='en-US', gender=1, letter=None, name=
         synthesis_input = texttospeech.types.SynthesisInput(ssml=text)
         response = client.synthesize_speech(synthesis_input, voice, audio_config)
         # The response's audio_content is binary.
-        output=output.replace('/','')
         write_file(response.audio_content,output)
 def list_voices(wavenet=None,lancode=None,gender=None,allvoices=False):
     client = texttospeech.TextToSpeechClient()
@@ -120,7 +126,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('input',nargs='?',default='<speak> Hello <break time=".8s"/> There </speak>')
+    parser.add_argument('input',nargs='?',default='<speak> Hello <break time="2.5s"/> There </speak>')
     parser.add_argument("-l", "--list", action="store_true", default=False)
 
     parser.add_argument(

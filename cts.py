@@ -10,8 +10,9 @@ __license__ = "MIT"
 import argparse
 import os, re
 from copy import copy
+from time import sleep
 import chess.pgn
-from easytts import to_voice, list_voices
+from easytts import to_voice_wrapper, list_voices
 
 nag_dict=['!','?','!!','??','!?','?!']
 piece_dict=['','Pawn','Knight','Bishop','Rook','Queen','King']
@@ -102,7 +103,7 @@ def to_movelist(node,index,nocomments,l=[]):
     return l
 
 def to_text(movelist, noindex, break_duration, startsvariation=False):
-    textlist=[]
+    textlist=['<speak>']
     for i in movelist:
         if isinstance(i, list):
             textlist.append(to_text(i, noindex, break_duration, startsvariation=True))
@@ -133,14 +134,15 @@ def to_text(movelist, noindex, break_duration, startsvariation=False):
             else:
                 sentence+=" to "
             sentence+=chess.SQUARE_NAMES[i.move.to_square]
-        sentence+=f'. <break time="{break_duration}"/>'
+        sentence+=f'. <break time="{break_duration}s"/>'
         if i.comment:
             sentence+=i.comment
-            sentence+=f'<break time="{break_duration*.75}"/>'
+            sentence+=f'<break time="{break_duration*.75}s"/>'
         if startsvariation:
             sentence+=" Then"
             startsvariation=False
         textlist.append(sentence)
+    textlist.append('</speak>')
     result='\n'.join(textlist)
     return result
 def getFileType(sdir,types=['.pgn']):
@@ -165,12 +167,14 @@ def main(args):
                 print(x)
     else:
         if args.source:
+            count=18
             with open(args.source,'r') as file:
                 while True:
                     Game=chess.pgn.read_game(file)
                     if Game is None:
                         break
                     output=Game.headers["Event"]+": "+Game.headers["White"]+" - "+Game.headers["Black"]
+                    output=output.replace('/','')
                     movelist=to_movelist(Game,1.0,args.nocomments,l=[])[1:]
                     if args.verbose>=1:
                         print(output)
@@ -181,35 +185,39 @@ def main(args):
                             tfile.write(output+'\n')
                             tfile.write(text)
                     if not args.silent:
-                        to_voice(text,speed=args.speed, pitch=args.pitch, lancode=args.lancode, gender=args.gender,letter=args.choice,name=args.name,wavenet=args.wavenet,output=args.folder+output+'.mp3', verbose=args.verbose)
+                        to_voice_wrapper(text,speed=args.speed, pitch=args.pitch, lancode=args.lancode, gender=args.gender,letter=args.choice,name=args.name,wavenet=args.wavenet,output=args.folder+str(count)+' '+output+'.mp3', verbose=args.verbose)
+                        count+=1
+                    
         else:
             k=getFileType(sdir=args.directory)
             for filename in k:
                 with open(filename,'r') as file: 
                     Game=chess.pgn.read_game(file)
                 movelist=to_movelist(Game,1.0,args.nocomments)[1:]
+                if args.verbose>=1:
+                        print(movelist)
                 text=to_text(movelist,args.noindex,args.pause)
                 if args.transcript:
                         with open(args.transcript,'a') as tfile:
                             tfile.write(output+'\n')
                             tfile.write(text)
                 if not args.silent:
-                    to_voice(text,speed=args.speed, pitch=args.pitch, lancode=args.lancode, gender=args.gender,letter=args.choice,name=args.name,wavenet=args.wavenet,output=args.folder+filename[:-4]+'.mp3',verbose=args.verbose)
+                    to_voice_wrapper(text,speed=args.speed, pitch=args.pitch, lancode=args.lancode, gender=args.gender,letter=args.choice,name=args.name,wavenet=args.wavenet,output=args.folder+filename[:-4]+'.mp3',verbose=args.verbose)
 
-
+                    
 if __name__ == "__main__":
     """ Read pgn files aloud """
     parser = argparse.ArgumentParser()
     group=parser.add_mutually_exclusive_group()
     group.add_argument("-i", "--input", action="store", dest="source")
     group.add_argument("-d", "--directory", help="default .", action="store", default=".")
-    group.add_argument("--folder", help="specify path to folder (ends with '/')", action="store", default="")
+    parser.add_argument("--folder", help="specify path to folder (end with '/')", action="store", default="")
     parser.add_argument("--noindex", help="Don't say move index", action="store_true", default=False)
     parser.add_argument("--nocomments", help="Don't say comments", action="store_true", default=False)
     parser.add_argument("--silent", help="No audio", action="store_true", default=False)
     parser.add_argument("-t","--transcript", action="store")
-    parser.add_argument("-s", "--speed", action="store", default=0.66, help="0.25 -> 4, default 0.8", type=float)
-    parser.add_argument("--breaklength", action="store", default=2.5, help="length of pause between moves", type=float, dest='pause')
+    parser.add_argument("-s", "--speed", action="store", default=0.66, help="0.25 -> 4, default 0.66", type=float)
+    parser.add_argument("--breaklength", action="store", default=2, help="length of pause between moves", type=float, dest='pause')
     parser.add_argument("-g", "--gender", action="store", help="1: MALE, 2: FEMALE, default 1", default=1, type=int)
     parser.add_argument("-p", "--pitch", action="store", help="[-20,20]", default=0, type=float)
     parser.add_argument("-l", "--lancode", action="store", help="BCP-47", default='en-US')
