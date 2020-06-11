@@ -36,7 +36,9 @@ def to_voice_wrapper(text,speed=1,pitch=0, lancode='en-US', gender=1, letter=Non
         try:
             to_voice(text,speed=speed, pitch=pitch, lancode=lancode, gender=gender,letter=letter,name=name,wavenet=wavenet,output=output,verbose=verbose)
             return
-        except:
+        except Exception as e:
+            if verbose:
+                print(str(e))
             print(f"Failed. Retrying in {retry} seconds...")
             sleep(retry)
 

@@ -167,7 +167,7 @@ def main(args):
                 print(x)
     else:
         if args.source:
-            count=18
+            count=1
             with open(args.source,'r') as file:
                 while True:
                     Game=chess.pgn.read_game(file)
